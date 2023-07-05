@@ -26,19 +26,120 @@ print(Fore.WHITE + 'https://github.com/Samuel-UC\n\n')
 
 class YoutubeDownloader:
     def __init__(self):
-        self.urls = []
+        self.urls = set()
+        self.allUrls = set()
 
-# Get downloaded song information
-def get_song_data():
-    
-    songs = []
-    lines = open(file_data).read().split('\n')
-    
-    for line in lines:
-        if len(line) > 5:
-            songs.append(line.split(','))
+    def start(self, inputDir, outputDir, newSongDir, fileType):
+        
+        ids = self.getTakeoutSongs()
 
-    return songs
+        
+
+        self.updateUrls()
+
+        urls = self.removeSetDuplicates(self.urls, self.allUrls)
+        print(len(urls))
+
+
+        
+        # Get previously downloaded songs
+        songs = get_song_data()
+        print(Fore.CYAN + 'Parsed CSV data from' + Fore.YELLOW, file_data)
+
+        # List of song IDs to download
+        urls = []
+
+        # Download from takeout
+        urls = parse_from_takeout(playlists_dir)
+
+        print(Fore.CYAN + 'Parsed playlist from' + Fore.YELLOW, playlists_dir)
+        print('\t', urls[0], '\n\t', urls[1], '\n\t', urls[2], '...')
+
+        save_new = False
+
+        print(Fore.CYAN + '\nWould you like to save new songs to', Fore.YELLOW + new_songs_dir + Fore.CYAN + '?' + Fore.WHITE)
+
+        if input('(y/n): ') == 'y':
+            save_new = True
+            delete_folder(new_songs_dir)
+
+        start(urls, file_output, save_new)
+
+        if len(failed_ids) > 0:
+            print(Fore.YELLOW + 'Failed to fetch ' + str(len(failed_ids)) + ' videos.')
+            print(Fore.WHITE + '\n'.join(failed_ids))
+
+    def removeSetDuplicates(self, arr1, arr2):
+        for val in arr1:
+            if val in arr2:
+                arr1.remove(val)
+
+        return arr1
+
+    def getFiles(self, directory):
+        
+        files = set()
+
+        for file in os.listdir(directory):
+            full_path = os.path.join(directory, file)
+            if os.path.isfile(full_path):
+                file_name = os.path.splitext(file)[0]
+                files.add(file_name)
+
+        return files
+    
+    # Parse data from Google takeout playlist data
+    def getTakeoutSongs(directory):
+        
+        playlist_files = os.listdir(directory)
+        print(Fore.WHITE + 'Select playlist to download:\n')
+
+        for i in range(len(playlist_files)):
+            print(Fore.YELLOW, '[' + str(i) + ']', Fore.CYAN, playlist_files[i])
+
+        print(Fore.WHITE)
+
+        selected = None
+        while not selected:
+            try:
+                selected = playlist_files[int(input())]
+            except:
+                print(Fore.RED + 'Invalid selection.' + Fore.WHITE)
+
+        print(Fore.CYAN + '\nParsing playlist:', Fore.YELLOW + selected)
+
+        contents = open(os.path.join(directory, selected)).read().splitlines()[8:]
+        urls = set()
+
+        for line in contents:
+            section = line.split(',')[0].strip()
+            if len(section) == 11:
+                urls.add(section)
+
+        return urls
+    
+    # Delete the contents of a folder
+    def deleteFolder(directory):
+        print(Fore.RED + 'Are you sure you want to delete all files in', Fore.YELLOW + directory + Fore.RED + '?')
+
+        files = os.listdir(directory)
+        print(Fore.RED + 'You will be deleting' + Fore.YELLOW, len(files), Fore.RED + 'files.\n')
+
+        if len(files) > 0:
+            print(Fore.RED + 'Preview of files:')
+            for file in files[:5]:
+                print(Fore.YELLOW, file)
+
+        print(Fore.WHITE)
+
+        if input('Are you sure? (y/n): ') == 'y':
+            for file in files:
+                os.remove(os.path.join(directory, file))
+
+    def onDownloadProgress(info):
+        if info['status'] == 'finished':
+            print('Done downloading, now post-processing ...')
+
 
 # Get audio files from YouTube video ID and save to directory        
 def get_audio(url, directory, save_new=False):
@@ -114,31 +215,8 @@ def get_audio(url, directory, save_new=False):
         print(Fore.RED + str(e))
         failed_ids.append(url)
 
-# Determine if song is already downloaded
-def has_song(video_id, title='', artist='', strict=True):
-    for song in songs:
-        if song[0] == video_id:
-            return True, song
 
-        if not strict and song[1] == title and song[2] == artist:
-            return True, song
 
-    return False
-
-# Save downloaded songs to file
-def save_songs():
-    data = []
-
-    for song in songs:
-        data.append(','.join(song))
-    
-    file = open(file_data, 'w')
-    file.write('\n'.join(data))
-    file.close()
-
-def ytLog(info):
-    if info['status'] == 'finished':
-        print('Done downloading, now post-processing ...')
 
 # Start download of songs from array of video IDs
 def start(urls, directory, save_new=False):
@@ -183,77 +261,7 @@ def start(urls, directory, save_new=False):
 
     print(Fore.CYAN + '\nFinished downloading' + Fore.YELLOW, len(urls), Fore.CYAN + 'audio files.\n')
 
-# Parse data from Google takeout playlist data
-def parse_from_takeout(directory):
-    
-    playlist_files = os.listdir(directory)
-    print(Fore.WHITE + '\nSelect playlist to download:\n')
 
-    for i in range(len(playlist_files)):
-        print(Fore.YELLOW, '[' + str(i) + ']', Fore.CYAN, playlist_files[i])
 
-    print(Fore.WHITE)
 
-    selected = None
-    while not selected:
-        try:
-            selected = playlist_files[int(input())]
-        except:
-            print(Fore.RED + 'Invalid selection.' + Fore.WHITE)
 
-    print(Fore.CYAN + '\nParsing playlist:', Fore.YELLOW + selected)
-
-    contents = open(os.path.join(directory, selected)).read().splitlines()[8:]
-    urls = []
-
-    for line in contents:
-        section = line.split(',')[0].strip()
-        if len(section) == 11:
-            urls.append(section)
-
-    return urls
-
-# Delete the contents of a folder
-def delete_folder(directory):
-    print(Fore.RED + '\nAre you sure you want to delete all files in', Fore.YELLOW + directory + Fore.RED + '?')
-
-    files = os.listdir(directory)
-    print(Fore.RED + 'You will be deleting' + Fore.YELLOW, len(files), Fore.RED + 'files.\n')
-
-    if len(files) > 0:
-        print(Fore.RED + 'Preview of files:')
-        for file in files[:5]:
-            print(Fore.YELLOW, file)
-
-    print(Fore.WHITE)
-
-    if input('Are you sure? (y/n): ') == 'y':
-        for file in files:
-            os.remove(os.path.join(directory, file))
-
-# Get previously downloaded songs
-songs = get_song_data()
-print(Fore.CYAN + 'Parsed CSV data from' + Fore.YELLOW, file_data)
-
-# List of song IDs to download
-urls = []
-
-# Download from takeout
-urls = parse_from_takeout(playlists_dir)
-
-print(Fore.CYAN + 'Parsed playlist from' + Fore.YELLOW, playlists_dir)
-print('\t', urls[0], '\n\t', urls[1], '\n\t', urls[2], '...')
-
-save_new = False
-
-print(Fore.CYAN + '\nWould you like to save new songs to', Fore.YELLOW + new_songs_dir + Fore.CYAN + '?' + Fore.WHITE)
-
-if input('(y/n): ') == 'y':
-    save_new = True
-    delete_folder(new_songs_dir)
-
-start(urls, file_output, save_new)
-
-if len(failed_ids) > 0:
-    print(Fore.YELLOW + 'Failed to fetch ' + str(len(failed_ids)) + ' videos.')
-    print(Fore.WHITE + '\n'.join(failed_ids))
