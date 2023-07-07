@@ -34,33 +34,30 @@ class YoutubeDownloader:
         # Get songs from takeout
         ids = self.getTakeoutSongs(inputDir)
         print(f'{Fore.CYAN}Parsed takeout data from {Fore.YELLOW}{inputDir}')
-        print('\t', urls[0], '\n\t', urls[1], '\n\t', urls[2], '...')
         
-        # Store previously downloaded songs
+        # Fetch previously downloaded songs
         self.downloadedIds.update(self.getFiles(outputDir))
-        print(f'{Fore.CYAN}Fetched previously downloaded songs from {Fore.YELLOW}{outputDir}')
+        print(f'\n{Fore.CYAN}Fetched ({Fore.YELLOW}{len(ids)}{Fore.CYAN}) previously downloaded songs from {Fore.YELLOW}{outputDir}')
 
         # Remove duplicate songs
         self.removeSetDuplicates(ids, self.downloadedIds)
-        print(f'{Fore.CYAN}Removed duplicate songs. Total unique songs: {Fore.YELLOW}{len(ids)}')
+        print(f'\n{Fore.CYAN}Removed duplicate songs.\nTotal unique songs: {Fore.YELLOW}{len(ids)}')
         
 
-        print(Fore.CYAN + '\nWould you like to save new songs to', Fore.YELLOW + new_songs_dir + Fore.CYAN + '?' + Fore.WHITE)
-        print(f'{Fore.CYAN}Would you like to save new songs to {Fore.YELLOW}{new_songs_dir}{Fore.CYAN}?' + '\n',  +  +  + '?' + Fore.WHITE)
+        print(f'\n{Fore.CYAN}Would you like to save new songs to {Fore.YELLOW}{newSongDir}{Fore.CYAN}?{Fore.WHITE}')
 
         if input('(y/n): ') == 'y':
-            save_new = True
-            delete_folder(new_songs_dir)
+            self.saveNewSongs = True
+            self.deleteFolder(newSongDir)
 
-        start(urls, file_output, save_new)
 
         if len(failed_ids) > 0:
             print(Fore.YELLOW + 'Failed to fetch ' + str(len(failed_ids)) + ' videos.')
             print(Fore.WHITE + '\n'.join(failed_ids))
 
-    def removeSetDuplicates(self, arr1, arr2):
-        for val in arr1:
-            if val in arr2:
+    def removeSetDuplicates(self, arr1: set, arr2: set):
+        for val in arr2:
+            if val in arr1:
                 arr1.remove(val)
 
         return arr1
@@ -78,7 +75,7 @@ class YoutubeDownloader:
         return files
     
     # Parse data from Google takeout playlist data
-    def getTakeoutSongs(directory):
+    def getTakeoutSongs(self, directory):
         
         playlist_files = os.listdir(directory)
         print(Fore.WHITE + 'Select playlist to download:\n')
@@ -108,11 +105,11 @@ class YoutubeDownloader:
         return urls
     
     # Delete the contents of a folder
-    def deleteFolder(directory):
-        print(Fore.RED + 'Are you sure you want to delete all files in', Fore.YELLOW + directory + Fore.RED + '?')
+    def deleteFolder(self, directory):
+        print(f'\n{Fore.RED}Are you sure you want to delete all files in {Fore.YELLOW}{directory}{Fore.RED}?')
 
         files = os.listdir(directory)
-        print(Fore.RED + 'You will be deleting' + Fore.YELLOW, len(files), Fore.RED + 'files.\n')
+        print(f'{Fore.RED}You will be deleting {Fore.YELLOW}{len(files)}{Fore.RED} files.')
 
         if len(files) > 0:
             print(Fore.RED + 'Preview of files:')
@@ -125,7 +122,7 @@ class YoutubeDownloader:
             for file in files:
                 os.remove(os.path.join(directory, file))
 
-    def onDownloadProgress(info):
+    def onDownloadProgress(self, info):
         if info['status'] == 'finished':
             print('Done downloading, now post-processing ...')
 
@@ -250,7 +247,8 @@ def start(urls, directory, save_new=False):
 
     print(Fore.CYAN + '\nFinished downloading' + Fore.YELLOW, len(urls), Fore.CYAN + 'audio files.\n')
 
-
+dl = YoutubeDownloader()
+dl.start(playlists_dir, file_output, new_songs_dir, file_type)
 
 
 
