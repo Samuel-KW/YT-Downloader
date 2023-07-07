@@ -26,38 +26,27 @@ print(Fore.WHITE + 'https://github.com/Samuel-UC\n\n')
 
 class YoutubeDownloader:
     def __init__(self):
-        self.urls = set()
-        self.allUrls = set()
+        self.downloadedIds = set()
+        self.saveNewSongs = False
 
     def start(self, inputDir, outputDir, newSongDir, fileType):
         
-        ids = self.getTakeoutSongs()
-
-        
-
-        self.updateUrls()
-
-        urls = self.removeSetDuplicates(self.urls, self.allUrls)
-        print(len(urls))
-
-
-        
-        # Get previously downloaded songs
-        songs = get_song_data()
-        print(Fore.CYAN + 'Parsed CSV data from' + Fore.YELLOW, file_data)
-
-        # List of song IDs to download
-        urls = []
-
-        # Download from takeout
-        urls = parse_from_takeout(playlists_dir)
-
-        print(Fore.CYAN + 'Parsed playlist from' + Fore.YELLOW, playlists_dir)
+        # Get songs from takeout
+        ids = self.getTakeoutSongs(inputDir)
+        print(f'{Fore.CYAN}Parsed takeout data from {Fore.YELLOW}{inputDir}')
         print('\t', urls[0], '\n\t', urls[1], '\n\t', urls[2], '...')
+        
+        # Store previously downloaded songs
+        self.downloadedIds.update(self.getFiles(outputDir))
+        print(f'{Fore.CYAN}Fetched previously downloaded songs from {Fore.YELLOW}{outputDir}')
 
-        save_new = False
+        # Remove duplicate songs
+        self.removeSetDuplicates(ids, self.downloadedIds)
+        print(f'{Fore.CYAN}Removed duplicate songs. Total unique songs: {Fore.YELLOW}{len(ids)}')
+        
 
         print(Fore.CYAN + '\nWould you like to save new songs to', Fore.YELLOW + new_songs_dir + Fore.CYAN + '?' + Fore.WHITE)
+        print(f'{Fore.CYAN}Would you like to save new songs to {Fore.YELLOW}{new_songs_dir}{Fore.CYAN}?' + '\n',  +  +  + '?' + Fore.WHITE)
 
         if input('(y/n): ') == 'y':
             save_new = True
