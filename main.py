@@ -24,10 +24,26 @@ init(convert = True) if os.name == 'nt' else init()
 print(Fore.MAGENTA + '\nYouTube Downloader')
 print(Fore.WHITE + 'https://github.com/Samuel-UC\n\n')
 
+class LogHandler:
+    def error(msg):
+        print("Captured Error: "+msg)
+
+    def warning(msg):
+        print("Captured Warning: "+msg)
+
+    def debug(msg):
+        print("Captured Log: "+msg)
+        
+
 class YoutubeDownloader:
     def __init__(self):
         self.downloadedIds = set()
         self.saveNewSongs = False
+
+        self.failedIDs = set()
+
+        self.filesDownloaded = 0
+        self.filesToDownload = 0
 
     def start(self, inputDir, outputDir, newSongDir, fileType):
         
@@ -48,10 +64,30 @@ class YoutubeDownloader:
 
         if input('(y/n): ') == 'y':
             self.saveNewSongs = True
-            self.deleteFolder(newSongDir)
+            self.deleteFolderContents(newSongDir)
 
 
-        if len(failed_ids) > 0:
+        ydl_opts = {
+            'format': 'm4a/bestaudio/best',
+            'outtmpl': 'new_songs/%(id)s.%(ext)s',
+            'progress_hooks': [self.onDownloadProgress],
+            'postprocessors': [{
+                'key': 'FFmpegMetadata',
+                'add_metadata': True,
+            }, {  # Extract audio using ffmpeg
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'm4a',
+            }]
+        }
+
+        
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            error_code = ydl.download(ids)
+
+        print(f'{Fore.RED}Error:', error_code)
+
+        if len(self.failedIDs) > 0:
             print(Fore.YELLOW + 'Failed to fetch ' + str(len(failed_ids)) + ' videos.')
             print(Fore.WHITE + '\n'.join(failed_ids))
 
@@ -105,10 +141,14 @@ class YoutubeDownloader:
         return urls
     
     # Delete the contents of a folder
-    def deleteFolder(self, directory):
-        print(f'\n{Fore.RED}Are you sure you want to delete all files in {Fore.YELLOW}{directory}{Fore.RED}?')
+    def deleteFolderContents(self, directory):
 
         files = os.listdir(directory)
+        if len(files) < 1:
+            return
+
+        print(f'\n{Fore.RED}Are you sure you want to delete all files in {Fore.YELLOW}{directory}{Fore.RED}?')
+
         print(f'{Fore.RED}You will be deleting {Fore.YELLOW}{len(files)}{Fore.RED} files.')
 
         if len(files) > 0:
@@ -123,8 +163,13 @@ class YoutubeDownloader:
                 os.remove(os.path.join(directory, file))
 
     def onDownloadProgress(self, info):
+        
+
         if info['status'] == 'finished':
-            print('Done downloading, now post-processing ...')
+            if os.name == 'nt':
+                self.filesDownloaded += 1
+                os.system(f'title Progress: {self.filesDownloaded} / {self.filesToDownload}')
+
 
 
 # Get audio files from YouTube video ID and save to directory        
@@ -219,26 +264,7 @@ def start(urls, directory, save_new=False):
         else:
             print(Fore.RED + 'Song already downloaded:', Fore.YELLOW + is_downloaded[1][1])
         
-    ydl_opts = {
-        'format': 'm4a/bestaudio/best',
-        'outtmpl': 'new_songs/%(id)s.%(ext)s',
-        'progress_hooks': [ytLog],
-        'postprocessors': [{
-            'key': 'FFmpegMetadata',
-            'add_metadata': True,
-        }, {  # Extract audio using ffmpeg
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'm4a',
-        }]
-    }
-
-    if os.name == 'nt':
-        os.system('title Progress: ' + str(index) + ' / ' + str(len(urls)))
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        error_code = ydl.download(urls)
-
-    print(error_code)
+    
 
     
 
