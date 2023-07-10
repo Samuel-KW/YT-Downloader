@@ -1,6 +1,4 @@
 
-file_data = 'data.csv'
-
 file_output = 'songs/'
 new_songs_dir = 'new_songs/'
 
@@ -23,27 +21,18 @@ init(convert = True) if os.name == 'nt' else init()
 
 print(Fore.MAGENTA + '\nYouTube Downloader')
 print(Fore.WHITE + 'https://github.com/Samuel-UC\n\n')
-
-class LogHandler:
-    def error(msg):
-        print("Captured Error: "+msg)
-
-    def warning(msg):
-        print("Captured Warning: "+msg)
-
-    def debug(msg):
-        print("Captured Log: "+msg)
         
 
 class YoutubeDownloader:
+
     def __init__(self):
         self.downloadedIds = set()
         self.saveNewSongs = False
 
-        self.failedIDs = set()
-
         self.filesDownloaded = 0
         self.filesToDownload = 0
+
+        self.failedIDs = set()
 
     def start(self, inputDir, outputDir, newSongDir, fileType):
         
@@ -57,11 +46,10 @@ class YoutubeDownloader:
 
         # Remove duplicate songs
         self.removeSetDuplicates(ids, self.downloadedIds)
+        self.filesToDownload = len(ids)
         print(f'\n{Fore.CYAN}Removed duplicate songs.\nTotal unique songs: {Fore.YELLOW}{len(ids)}')
-        
 
         print(f'\n{Fore.CYAN}Would you like to save new songs to {Fore.YELLOW}{newSongDir}{Fore.CYAN}?{Fore.WHITE}')
-
         if input('(y/n): ') == 'y':
             self.saveNewSongs = True
             self.deleteFolderContents(newSongDir)
@@ -69,23 +57,24 @@ class YoutubeDownloader:
 
         ydl_opts = {
             'format': 'm4a/bestaudio/best',
-            'outtmpl': 'new_songs/%(id)s.%(ext)s',
+            'outtmpl': file_output + '%(id)s.%(ext)s',
             'progress_hooks': [self.onDownloadProgress],
+
             'postprocessors': [{
                 'key': 'FFmpegMetadata',
                 'add_metadata': True,
             }, {  # Extract audio using ffmpeg
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'm4a',
-            }]
+            }],
+            'ffmpeg_location': 'C:\\Program Files\\ffmpeg\\bin',
+            'ignoreerrors': True,
+            'logger': LogHandler
         }
 
-        
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            error_code = ydl.download(ids)
-
-        print(f'{Fore.RED}Error:', error_code)
+            ydl.download(ids)
 
         if len(self.failedIDs) > 0:
             print(Fore.YELLOW + 'Failed to fetch ' + str(len(failed_ids)) + ' videos.')
@@ -164,6 +153,9 @@ class YoutubeDownloader:
 
     def onDownloadProgress(self, info):
         
+        if info['status'] == 'error':
+            print(info['info_dict'])
+            #self.failedIDs.add('')
 
         if info['status'] == 'finished':
             if os.name == 'nt':
@@ -171,110 +163,17 @@ class YoutubeDownloader:
                 os.system(f'title Progress: {self.filesDownloaded} / {self.filesToDownload}')
 
 
-
-# Get audio files from YouTube video ID and save to directory        
-def get_audio(url, directory, save_new=False):
-
-    try:
-        audio = pafy.new(url, basic=True, gdata=False)
-        
-        print(Fore.CYAN + 'Downloading' + Fore.YELLOW, audio.title + Fore.WHITE)
-        
-        # Get best audio quality
-        audio_stream = audio.getbestaudio(preftype=file_type, ftypestrict=True)
-
-        print()
-
-        # Create filename
-        filename = url + '.' + file_type
-
-        # Parse data
-        title  = re.sub('[^a-zA-Z0-9_]', '', re.sub(' ', '_', audio.title ))
-        artist = re.sub('[^a-zA-Z0-9_]', '', re.sub(' ', '_', audio.author))
-        
-        # Save the file if isn't a duplicate
-        if has_song(url, title, artist, False):
-
-            print(Fore.RED + 'Song is already in collection:', Fore.YELLOW + audio.title)
-
-            return
-            
-        else:
-
-            filepath = os.path.join(directory, filename)
-            audio_stream.download(filepath=filepath)
-
-            try:
-                audio = MP4(directory + filename)
-
-                if not audio.tags:
-                    audio.add_tags()
-                
-                audio.tags['\xa9nam'] = title
-                audio.tags['\xa9ART'] = artist
-
-                audio.tags['title'] = title
-                audio.tags['artist'] = artist
-
-                audio.save()
-                
-                if save_new:
-                    copyfile(directory + filename, new_songs_dir + filename)
-                    audio = MP4(new_songs_dir + filename)
-
-                    if not audio.tags:
-                        audio.add_tags()
-                    
-                    audio.tags['\xa9nam'] = title
-                    audio.tags['\xa9ART'] = artist
-
-                    audio.tags['title'] = title
-                    audio.tags['artist'] = artist
-
-                    audio.save()
-
-            except Exception as e:
-
-                print(Fore.RED + 'Error saving metadata:', e)
-
-            songs.append([url, title, artist, filename])
+class LogHandler:
 
 
-        return filepath, filename
+    def error(msg):
+        pass
 
-    except Exception as e:
-        print(Fore.RED + str(e))
-        failed_ids.append(url)
+    def warning(msg):
+        pass
 
-
-
-
-# Start download of songs from array of video IDs
-def start(urls, directory, save_new=False):
-
-    goodUrls = []
-
-    for videoId in urls:
-        index += 1
-
-        is_downloaded = has_song(videoId);
-
-        if not is_downloaded:
-            goodUrls.append(videoId)
-        else:
-            print(Fore.RED + 'Song already downloaded:', Fore.YELLOW + is_downloaded[1][1])
-        
-    
-
-    
-
-    save_songs()
-    
-
-    print(Fore.CYAN + '\nFinished downloading' + Fore.YELLOW, len(urls), Fore.CYAN + 'audio files.\n')
+    def debug(msg):
+        pass
 
 dl = YoutubeDownloader()
 dl.start(playlists_dir, file_output, new_songs_dir, file_type)
-
-
-
